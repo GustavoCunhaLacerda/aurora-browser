@@ -4,69 +4,70 @@ from typing import List, Tuple
 
 class URL:
   def __init__(self, url: str):
+    """Inicializa a URL e configura o esquema específico (http, https, file)."""
     self.scheme, url = url.split("://", 1)
-    assert self.scheme in ["http", "https", "file"]
     
-    if(self.scheme in ["http", "https"]):
-      self.bootHttpUrlConfigs(url)
-    elif(self.scheme in ["file"]):
-      self.bootFileConfigs(url)
+    if self.scheme not in ["http", "https", "file"]:
+      raise ValueError("Scheme not supported.")
     
-  
-  def bootFileConfigs(self, url: str):
-    self.path = url
-    
-  def bootHttpUrlConfigs(self, url: str):
-    if self.scheme == "http":
-      self.port = 80
-    elif self.scheme == "https":
-      self.port = 443
+    if self.scheme == "file":
+      self.path = url
+    if self.scheme in ["http", "https"]:
+        self.host, self.path, self.port = self.parse_http_url(url)
 
+  def parse_http_url(self, url: str):
+    """Analisa a URL HTTP/HTTPS e retorna host, caminho e porta."""
+    port = 443 if self.scheme == "https" else 80
     if "/" not in url:
       url = url + "/"
 
-    self.host, url = url.split("/", 1)
-    self.path = "/" + url
+    host, url = url.split("/", 1)
+    path = "/" + url
 
-    if ":" in self.host:
-      self.host, port = self.host.split(":", 1)
-      self.port = int(port)
+    if ":" in host:
+      host, port = host.split(":", 1)
+      port = int(port)
+      
+    return host, path, port
       
   def request(self):
-    if(self.scheme in ["http", "https"]):
-      self.doHttpRequest()
-    elif(self.scheme in ["file"]):
-      self.doFileRequest()
+    """Realiza a requisição HTTP ou lê um arquivo local."""
+    try:
+        if self.scheme in ["http", "https"]:
+            self.do_http_request()
+        elif self.scheme == "file":
+            self.do_file_request()
+    except Exception as e:
+        print(f"Error during request: {e}")
       
   
-  def doHttpRequest(self):
-    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
+  def do_http_request(self):
+    """Configura e envia uma requisição HTTP/HTTPS e armazena a resposta."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP) as s:
+      if self.scheme == "https":
+        ctx = ssl.create_default_context()
+        s = ctx.wrap_socket(s, server_hostname=self.host)
+      s.connect((self.host, self.port))
+      
+      request = self.build_request_headers([
+        ("Host", self.host),
+        ("Connection", "Close")
+      ])
 
-    if self.scheme == "https":
-      ctx = ssl.create_default_context()
-      s = ctx.wrap_socket(s, server_hostname=self.host)
-
-    s.connect((self.host, self.port))
-    
-    request = self.buildRequestHeaders([
-      ("Host", self.host),
-      ("Connection", "Close")
-    ])
-
-    s.send(request)
-    response = self.readResponse(s)
-    s.close()
-
-    self.response = response
+      s.send(request)
+      self.response = self.read_response(s)
   
-  def doFileRequest(self):
-    with open(self.path, "r") as file:
+  def do_file_request(self):
+    """Lê o conteúdo de um arquivo local."""
+    try:
+      with open(self.path, "r") as file:
         content = file.read()
-        self.response = {
-          "content": content
-        }
+        self.response = { "content": content }
+    except FileNotFoundError:
+      self.response = { "content": f"File not found: {self.path}" }
   
-  def buildRequestHeaders(self, headers: List[Tuple[str, str]], httpVersion: str = "1.1") -> bytes:
+  def build_request_headers(self, headers: List[Tuple[str, str]], httpVersion: str = "1.1") -> bytes:
+    """Constrói o cabeçalho da requisição HTTP."""
     request = f"GET {self.path} HTTP/{httpVersion}\r\n"
     for header in headers:
       name, value = header
@@ -75,7 +76,8 @@ class URL:
 
     return request.encode("utf8")
 
-  def readResponse(self, s: socket):
+  def read_response(self, s: socket):
+    """Lê a resposta da requisição HTTP."""
     response = s.makefile("r", encoding="utf8", newline="\r\n")
     
     statusLine = response.readline()
@@ -98,9 +100,10 @@ class URL:
       "content": content
     }
 
-  def showContent(self):
+  def show_content(self):
+    """Exibe o conteúdo da resposta (limitado para visualização)."""
     isInTag = False
-    print(self.response)
+    
     for character in self.response["content"]:
       if character == "<":
         isInTag = True
@@ -111,9 +114,16 @@ class URL:
 
 
 def load(url: URL):
+  """Carrega a URL e exibe o conteúdo."""
   url.request()
-  url.showContent()
+  url.show_content()
 
 if __name__ == "__main__":
   import sys
-  load(URL(sys.argv[1]))
+  if len(sys.argv) > 1:
+    try:
+        load(URL(sys.argv[1]))
+    except Exception as e:
+        print(f"Error: {e}")
+  else:
+    print("Please provide a URL as an argument.")
