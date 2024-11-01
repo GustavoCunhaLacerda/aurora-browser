@@ -1,6 +1,6 @@
 Implementações:
 - Requests
-  - [ ] HTTP/RTTPS Requests
-  - [ ] FILE Requests
+  - [X] HTTP/RTTPS Requests
+  - [X] FILE Requests
   - [ ] DATA Requests
   - [ ] VIEW-SOURCE
