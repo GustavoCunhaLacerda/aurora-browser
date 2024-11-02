@@ -5,6 +5,9 @@ from url import URL
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18  # Espaço horizontal e vertical entre caracteres
 SCROLL_STEP = 100  # Tamanho do passo para ação de rolagem
+SCROLL_W = 15
+SCROLL_H = 40
+SCROLL_COLOR = "#2c3e50"
 
 class Browser:
   """Um navegador usando Tkinter para renderizar conteúdo WEB."""
@@ -35,6 +38,7 @@ class Browser:
     
     self.text = self.lex(url.response["content"])
     self.display_list = self.layout(self.text)
+    self.max_scroll = self.calculate_max_scroll()
     self.draw()
   
   def lex(self, body):
@@ -57,6 +61,9 @@ class Browser:
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
     
+    # Largura efetiva do canvas considerando a barra de rolagem
+    effective_width = self.w - (HSTEP + SCROLL_W)
+    
     for c in text:
       if c == "\n":
         cursor_y += VSTEP
@@ -66,7 +73,7 @@ class Browser:
         cursor_x += HSTEP
         
         # Avança para a próxima linha se o texto atingir a largura do canvas
-        if cursor_x >= self.w + HSTEP:
+        if cursor_x >= effective_width:
           cursor_y += VSTEP
           cursor_x = HSTEP
         
@@ -81,14 +88,16 @@ class Browser:
       if y + VSTEP < self.scroll: continue
       self.canvas.create_text(x, y - self.scroll, text=c)
       
+    self.draw_scrollbar()
+      
   def scrolldown(self, e):
     """Rola o conteúdo para baixo e redesenha."""
-    self.scroll += SCROLL_STEP
+    self.scroll = min(self.scroll + SCROLL_STEP, self.max_scroll)
     self.draw()
     
   def scrollup(self, e):
     """Rola o conteúdo para cima e redesenha."""
-    self.scroll -= SCROLL_STEP
+    self.scroll = max(0, self.scroll - SCROLL_STEP)
     self.draw()
   
   def scrollmouse(self, e):
@@ -104,5 +113,19 @@ class Browser:
     self.h = e.height
     
     self.display_list = self.layout(self.text)
+    self.max_scroll = self.calculate_max_scroll()
     self.draw()
-      
+    
+    
+  def draw_scrollbar(self):
+    """Desenha a barra de rolagem no lado direito do canvas."""
+    percentage = self.scroll / self.max_scroll
+    y_value = min(percentage * self.h, self.h - SCROLL_H)
+    
+    self.canvas.create_rectangle(self.w - SCROLL_W, 0 + y_value, self.w, SCROLL_H + y_value, fill=SCROLL_COLOR, outline=SCROLL_COLOR)
+    self.canvas.create_line(self.w - SCROLL_W, 0, self.w - SCROLL_W, self.h, fill=SCROLL_COLOR)
+  
+  def calculate_max_scroll(self):
+    """Calcula a rolagem máxima com base na altura do conteúdo."""
+    last_y = self.display_list[-1][1]
+    return max(0, last_y - self.h + VSTEP)

@@ -16,7 +16,7 @@ python ./main <url>
 - Scroll
   - [X] Teclado
   - [X] Mouse
-  - [ ] Scrollbar
+  - [X] Scrollbar
 - [X] Redimentionamento da janela
 - [ ] Suporte para emoji
 - [ ] about:blank
