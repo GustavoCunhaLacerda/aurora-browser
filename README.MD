@@ -21,3 +21,15 @@ python ./main <url>
 - [ ] Suporte para emoji
 - [ ] about:blank
 - [ ] Alternar direção de texto
+- [X] Tokens
+- Tags:
+  - [X] p
+  - [X] i
+  - [X] b
+  - [X] big
+  - [X] small
+  - [X] h1
+  - [ ] title
+  - [ ] sup
+  - [ ] abbr
+  - [ ] pre

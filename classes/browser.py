@@ -1,5 +1,10 @@
 import tkinter
-from url import URL
+import tkinter.font
+
+from classes.url import URL
+from classes.text import Text
+from classes.tag import Tag
+from classes.layout import Layout
 
 # Constantes para dimensões da interface e espaçamento do texto
 WIDTH, HEIGHT = 800, 600
@@ -35,58 +40,42 @@ class Browser:
   def load(self, url: URL):
     """Carrega e exibe o conteúdo da URL especificada."""
     url.request()
-    
-    self.text = self.lex(url.response["content"])
-    self.display_list = self.layout(self.text)
+    body = url.response["content"]
+    self.tokens = self.lex(body)
+    self.display_list = Layout(self.tokens, self.w - SCROLL_W).display_list
     self.max_scroll = self.calculate_max_scroll()
     self.draw()
   
   def lex(self, body):
     """Remove as tags HTML para retornar apenas o texto puro."""
-    text = ""
-    isInTag = False
+    out = []
+    buffer = ""
+    in_tag = False
     
     for c in body:
       if c == "<":
-        isInTag = True
+        in_tag = True
+        if buffer: out.append(Text(buffer))
+        buffer = ""
       elif c == ">":
-        isInTag = False
-      elif not isInTag:
-        text += c
-        
-    return text
-  
-  def layout(self, text):
-    """Organiza o texto puro no canvas com coordenadas para cada caractere."""
-    display_list = []
-    cursor_x, cursor_y = HSTEP, VSTEP
-    
-    # Largura efetiva do canvas considerando a barra de rolagem
-    effective_width = self.w - (HSTEP + SCROLL_W)
-    
-    for c in text:
-      if c == "\n":
-        cursor_y += VSTEP
-        cursor_x = HSTEP
+        in_tag = False
+        if buffer: out.append(Tag(buffer))
+        buffer = ""
       else:
-        display_list.append((cursor_x, cursor_y, c))
-        cursor_x += HSTEP
-        
-        # Avança para a próxima linha se o texto atingir a largura do canvas
-        if cursor_x >= effective_width:
-          cursor_y += VSTEP
-          cursor_x = HSTEP
-        
-    return display_list
+        buffer += c
+    
+    if not in_tag and buffer:
+      out.append(Text(buffer))
+    return out
   
   def draw(self):
     """Desenha o conteúdo de texto no canvas com base no layout e na posição de rolagem."""
     self.canvas.delete("all")
     
-    for x, y, c in self.display_list:
+    for x, y, c, f in self.display_list:
       if y - self.scroll > self.h: continue
       if y + VSTEP < self.scroll: continue
-      self.canvas.create_text(x, y - self.scroll, text=c)
+      self.canvas.create_text(x, y - self.scroll, text=c, anchor='nw', font=f)
       
     self.draw_scrollbar()
       
@@ -112,14 +101,14 @@ class Browser:
     self.w = e.width
     self.h = e.height
     
-    self.display_list = self.layout(self.text)
+    self.display_list = Layout(self.tokens, self.w - SCROLL_W).display_list
     self.max_scroll = self.calculate_max_scroll()
     self.draw()
     
     
   def draw_scrollbar(self):
     """Desenha a barra de rolagem no lado direito do canvas."""
-    percentage = self.scroll / self.max_scroll
+    percentage = self.scroll / max(self.max_scroll, 1)
     y_value = min(percentage * self.h, self.h - SCROLL_H)
     
     self.canvas.create_rectangle(self.w - SCROLL_W, 0 + y_value, self.w, SCROLL_H + y_value, fill=SCROLL_COLOR, outline=SCROLL_COLOR)
