@@ -3,7 +3,7 @@ import tkinter.font
 
 from classes.url import URL
 from classes.text import Text
-from classes.tag import Tag
+from classes.element import Element
 from classes.layout import Layout
 
 # Constantes para dimensões da interface e espaçamento do texto
@@ -59,7 +59,7 @@ class Browser:
         buffer = ""
       elif c == ">":
         in_tag = False
-        if buffer: out.append(Tag(buffer))
+        if buffer: out.append(Element(buffer))
         buffer = ""
       else:
         buffer += c
